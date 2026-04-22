@@ -1,0 +1,131 @@
+{
+  "_note": "BU AI Ambassador Program - Cohort 2 Plan. Layouts + all 5 recipes.",
+  "slides": [
+    {
+      "layout": "Title Slide",
+      "placeholders": {
+        "title": "BU AI Ambassador Program",
+        "subtitle": "Cohort 2 Execution Plan - Scaling AI Adoption in Corporate Services"
+      }
+    },
+    {
+      "recipe": "kpi_cards",
+      "recipe_params": {
+        "title": "The Commitment - One Number, Baseline to Target",
+        "cards": [
+          {"label": "BASELINE (TODAY)",     "value": "[ TBC % ]", "subtext": "Weekly active Copilot in the BU"},
+          {"label": "TARGET (END Q3)",      "value": "[ TBC % ]", "subtext": "Proposed by Lead"},
+          {"label": "AMBASSADOR FOOTPRINT", "value": "10 -> 20",  "subtext": "Doubling globally", "color": "#2E8B57"}
+        ]
+      }
+    },
+    {
+      "layout": "Title and Content",
+      "placeholders": {
+        "title": "Why CS, Why Now",
+        "content": [
+          "AI at MS is a firmwide strategic priority - adoption is a measured outcome",
+          "Federated model: central enables, the BU delivers - no central owner of our outcomes",
+          "Cohort 1 feedback: ambassadors unclear on BU direction - Cohort 2 closes that gap",
+          "Peer BUs actively publishing use cases - the BU must keep pace or lag visibly",
+          "Cohort 2 is the inflection: scale deliberately now, or fall behind"
+        ]
+      }
+    },
+    {
+      "recipe": "comparison",
+      "recipe_params": {
+        "title": "BU AI Priorities - Evidence-Based",
+        "left": {
+          "header": "WHAT WE ARE DOING",
+          "items": [
+            "Priority A: GenAI Education - baseline literacy",
+            "Priority B: Product Training - Copilot in daily workflows",
+            "Priority C: Adoption - trained users become active users",
+            "Concentrate ambassador time on A and B"
+          ]
+        },
+        "right": {
+          "header": "WHAT WE ARE NOT DOING",
+          "items": [
+            "Technical Depth programming - wrong profile for the BU",
+            "Firmwide use-case competitions - not BU-specific",
+            "Advanced clusters (Architecture, Agent Systems)",
+            "Deprioritizations logged and defensible"
+          ]
+        }
+      }
+    },
+    {
+      "recipe": "timeline",
+      "recipe_params": {
+        "title": "90-Day Plan - Mobilize / Activate / Measure",
+        "milestones": [
+          {"date": "May 5",  "label": "Orientation + HR clearance", "status": "done"},
+          {"date": "May 15", "label": "BU Ambassador Kickoff",      "status": "current"},
+          {"date": "Jun 1",  "label": "Activation begins",          "status": "upcoming"},
+          {"date": "Jul 1",  "label": "First ExCo monthly update",  "status": "upcoming"},
+          {"date": "Sep 30", "label": "Q3 target review",           "status": "upcoming"}
+        ]
+      }
+    },
+    {
+      "recipe": "chart_bar",
+      "recipe_params": {
+        "title": "Cohort 1 vs Cohort 2 - What Doubling Unlocks (illustrative)",
+        "categories": ["Reach (k)", "101/201 completions", "Use cases", "Weekly active %"],
+        "series": [
+          {"name": "Cohort 1 (10 ambassadors)",        "values": [2, 3, 5, 18]},
+          {"name": "Cohort 2 target (20 ambassadors)", "values": [6, 9, 15, 45]}
+        ]
+      }
+    },
+    {
+      "layout": "Title and Content",
+      "placeholders": {
+        "title": "How We'll Measure - Layered Framework",
+        "content": [
+          "North star: % of BU population with weekly active Copilot usage",
+          "Reach: % enrolled in 101/201 (<LMS>)",
+          "Adoption: % of trained users active within 30 days",
+          "Impact: BU use cases surfaced / deployed",
+          "Health: Ambassador engagement (>=18 of 20 active)"
+        ]
+      }
+    },
+    {
+      "layout": "Title and Content",
+      "placeholders": {
+        "title": "Risks at Scale",
+        "content": [
+          "BU lags peer BUs on AI adoption - visibility erodes",
+          "Manager disengagement - ambassadors cannot get time",
+          "Ambassador capacity under-sanctioned - role de-prioritized",
+          "Data access missing - cannot target low-usage pockets",
+          "Ambassador attrition - coverage gaps, especially regional",
+          "AI governance uncertainty - use cases surface but cannot deploy"
+        ]
+      }
+    },
+    {
+      "recipe": "asks",
+      "recipe_params": {
+        "title": "Asks from Leadership",
+        "asks": [
+          {
+            "number": 1,
+            "title": "Formal ambassador time allocation (~10%), ExCo-sanctioned",
+            "body": "Confirm BU AI Ambassadors may dedicate ~10% of working time to the program, protected from BAU reprioritization.",
+            "why": "Without sanctioned time, ambassador activity depends on goodwill - the Cohort 1 failure mode."
+          },
+          {
+            "number": 2,
+            "title": "ExCo endorsement email + AI objective in manager reviews",
+            "body": "ExCo-level email to BU managers naming ambassadors in their teams, with AI adoption as a manager performance objective.",
+            "why": "One email is worth ten ambassador sessions for modeling adoption behavior."
+          }
+        ]
+      }
+    }
+  ]
+}

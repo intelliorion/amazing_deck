@@ -1,0 +1,35 @@
+{
+  "slides": [
+    {
+      "layout": "Title Slide",
+      "placeholders": {
+        "title": "amazing-deck",
+        "subtitle": "Smoke test - 3 slides, 3 kinds"
+      }
+    },
+    {
+      "recipe": "kpi_cards",
+      "recipe_params": {
+        "title": "Why this tool exists",
+        "cards": [
+          {"label": "LAYOUTS USED", "value": "2",     "subtext": "from the template"},
+          {"label": "RECIPES USED", "value": "2",     "subtext": "from the library"},
+          {"label": "BUILD TIME",   "value": "< 1s",  "subtext": "end-to-end"}
+        ]
+      }
+    },
+    {
+      "layout": "Title and Content",
+      "placeholders": {
+        "title": "Next steps",
+        "content": [
+          "Drop your firm template into templates/",
+          "Run: amazing-deck analyze",
+          "Read knowledge-hub/<name>/generation-prompt.md",
+          "Write content.json",
+          "Run: amazing-deck generate"
+        ]
+      }
+    }
+  ]
+}

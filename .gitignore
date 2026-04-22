@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+build/
+dist/
+*.egg-info/
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+
+# amazing_deck working dirs
+templates/*.pptx
+templates/*.potx
+knowledge-hub/
+output/
+
+!templates/.gitkeep
+
+# Private deck content (kept local, not in public repo)
+examples/cs_ambassador_final.json
