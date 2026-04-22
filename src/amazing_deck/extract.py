@@ -6,6 +6,7 @@ import json
 from pptx import Presentation
 
 from .utils import emu_to_inches, slugify
+from .thumbnails import render_layout_thumbnails
 
 
 NS_A = "http://schemas.openxmlformats.org/drawingml/2006/main"
@@ -23,9 +24,17 @@ def analyze_template(template_path, output_dir):
     prs = Presentation(str(template_path))
 
     theme = extract_theme(prs)
+    backgrounds = extract_backgrounds(prs, theme)
     layouts = [describe_layout(i, layout)
                for i, layout in enumerate(prs.slide_layouts)]
     image_count = extract_images(prs, hub / "assets" / "images")
+    thumbnails = render_layout_thumbnails(
+        template_path, prs, hub / "layouts" / "thumbnails", backgrounds)
+
+    bg_by_idx = {b["index"]: b for b in backgrounds.get("layouts", [])}
+    for lm in layouts:
+        lm["thumbnail"] = thumbnails.get(lm["index"])
+        lm["background"] = bg_by_idx.get(lm["index"])
 
     manifest = {
         "template_path": str(template_path),
@@ -37,12 +46,14 @@ def analyze_template(template_path, output_dir):
         },
         "layouts": layouts,
         "theme": theme,
+        "backgrounds": backgrounds,
         "image_count": image_count,
     }
 
     (hub / "manifest.json").write_text(json.dumps(manifest, indent=2))
+    (hub / "assets" / "backgrounds.json").write_text(json.dumps(backgrounds, indent=2))
     _write_overview(hub, manifest)
-    _write_style_guide(hub, theme)
+    _write_style_guide(hub, theme, backgrounds)
     _write_colors_json(hub, theme)
     _write_fonts_json(hub, theme)
     for lm in layouts:
@@ -108,6 +119,94 @@ def extract_theme(prs):
     except Exception as exc:
         print(f"  [warn] Could not extract theme: {exc}")
     return {"colors": colors, "fonts": fonts}
+
+
+def extract_backgrounds(prs, theme):
+    """Extract <p:bg> from master + each layout. Resolve theme colors to hex."""
+    ns = {
+        "p": "http://schemas.openxmlformats.org/presentationml/2006/main",
+        "a": NS_A,
+    }
+    colors = theme.get("colors", {})
+
+    def parse_bg(element):
+        bg = element.find(".//p:bg", ns)
+        if bg is None:
+            return None
+        bg_pr = bg.find("p:bgPr", ns)
+        if bg_pr is None:
+            return {"fill_type": "inherit", "hex": None}
+
+        solid = bg_pr.find("a:solidFill", ns)
+        if solid is not None:
+            scheme = solid.find("a:schemeClr", ns)
+            srgb = solid.find("a:srgbClr", ns)
+            if scheme is not None:
+                scheme_name = scheme.get("val", "")
+                aliases = {"tx1": "dk1", "bg1": "lt1", "tx2": "dk2", "bg2": "lt2"}
+                resolved = aliases.get(scheme_name, scheme_name)
+                hex_val = colors.get(resolved, "#CCCCCC")
+                lm = scheme.find("a:lumMod", ns)
+                lo = scheme.find("a:lumOff", ns)
+                lm_val = int(lm.get("val")) if lm is not None else None
+                lo_val = int(lo.get("val")) if lo is not None else None
+                if lm_val is not None or lo_val is not None:
+                    hex_val = apply_luminance(hex_val, lm_val, lo_val)
+                return {
+                    "fill_type": "solid",
+                    "hex": hex_val,
+                    "theme_color": scheme_name,
+                    "lumMod": lm_val,
+                    "lumOff": lo_val,
+                }
+            if srgb is not None:
+                return {"fill_type": "solid", "hex": "#" + srgb.get("val", "000000").upper()}
+
+        if bg_pr.find("a:gradFill", ns) is not None:
+            return {"fill_type": "gradient", "hex": "#CCCCCC"}
+        if bg_pr.find("a:blipFill", ns) is not None:
+            return {"fill_type": "picture", "hex": "#CCCCCC"}
+        if bg_pr.find("a:pattFill", ns) is not None:
+            return {"fill_type": "pattern", "hex": "#CCCCCC"}
+
+        return {"fill_type": "unknown", "hex": "#CCCCCC"}
+
+    master_bg = parse_bg(prs.slide_master.element) or {"fill_type": "default", "hex": "#FFFFFF"}
+
+    layout_bgs = []
+    for i, layout in enumerate(prs.slide_layouts):
+        bg = parse_bg(layout.element)
+        if bg is None:
+            bg = {**master_bg, "inherited": True}
+        else:
+            bg["inherited"] = False
+        bg["index"] = i
+        bg["name"] = layout.name
+        layout_bgs.append(bg)
+
+    return {"master": master_bg, "layouts": layout_bgs}
+
+
+def apply_luminance(hex_color, lum_mod=None, lum_off=None):
+    """Apply OOXML lumMod/lumOff modifiers. Values are 1/1000 units (100000 = 100%)."""
+    import colorsys
+    s = str(hex_color).lstrip("#")
+    if len(s) != 6:
+        return hex_color
+    try:
+        r = int(s[0:2], 16) / 255
+        g = int(s[2:4], 16) / 255
+        b = int(s[4:6], 16) / 255
+    except ValueError:
+        return hex_color
+    h, l, sat = colorsys.rgb_to_hls(r, g, b)
+    if lum_mod is not None:
+        l = l * (lum_mod / 100000.0)
+    if lum_off is not None:
+        l = l + (lum_off / 100000.0)
+    l = max(0.0, min(1.0, l))
+    r, g, b = colorsys.hls_to_rgb(h, l, sat)
+    return "#{:02X}{:02X}{:02X}".format(int(r * 255), int(g * 255), int(b * 255))
 
 
 def extract_images(prs, out_dir):
@@ -201,6 +300,7 @@ def _write_overview(hub, manifest):
     n_images = manifest["image_count"]
     theme_colors = manifest["theme"]["colors"]
     theme_fonts = manifest["theme"]["fonts"]
+    layouts = manifest["layouts"]
 
     lines = [
         f"# Overview — {manifest['template_name']}",
@@ -213,19 +313,42 @@ def _write_overview(hub, manifest):
         f"minor={theme_fonts.get('minor', 'n/a')}",
         f"- **Embedded images:** {n_images} (see `assets/images/`)",
         "",
-        "## Layouts available",
+        "## Layouts at a glance",
         "",
     ]
-    for lm in manifest["layouts"]:
+    cols = 3
+    rows = (len(layouts) + cols - 1) // cols
+    header = "| " + " | ".join([" "] * cols) + " |"
+    sep = "|" + "|".join(["---"] * cols) + "|"
+    lines += [header, sep]
+    for r in range(rows):
+        imgs, labels = [], []
+        for c in range(cols):
+            idx = r * cols + c
+            if idx < len(layouts):
+                lm = layouts[idx]
+                thumb = lm.get("thumbnail") or ""
+                imgs.append(f"![{lm['index']}](layouts/{thumb})" if thumb else " ")
+                labels.append(f"**[{lm['index']}] {lm['name']}**")
+            else:
+                imgs.append(" ")
+                labels.append(" ")
+        lines.append("| " + " | ".join(imgs) + " |")
+        lines.append("| " + " | ".join(labels) + " |")
+    lines += ["", "## Layouts — detailed list", ""]
+    for lm in layouts:
         roles = ", ".join(sorted({p["role"] for p in lm["placeholders"]})) or "none"
+        bg = (lm.get("background") or {}).get("hex") or "inherit"
         lines.append(f"- **[{lm['index']}] {lm['name']}** — "
-                     f"{len(lm['placeholders'])} placeholders ({roles})")
-    lines.append("")
-    lines.append("See `layouts/` for per-layout detail and `style-guide.md` for colors/fonts.")
+                     f"{len(lm['placeholders'])} placeholders ({roles}) · bg `{bg}`")
+    lines += ["",
+              "See `layouts/` for per-layout detail, "
+              "`style-guide.md` for colors/fonts, and "
+              "`assets/backgrounds.json` for machine-readable background data."]
     (hub / "overview.md").write_text("\n".join(lines))
 
 
-def _write_style_guide(hub, theme):
+def _write_style_guide(hub, theme, backgrounds=None):
     colors = theme.get("colors", {})
     fonts = theme.get("fonts", {})
     lines = [
@@ -245,6 +368,20 @@ def _write_style_guide(hub, theme):
         f"- **Major (headings):** `{fonts.get('major', 'n/a')}`",
         f"- **Minor (body):** `{fonts.get('minor', 'n/a')}`",
         "",
+    ]
+    if backgrounds:
+        lines += ["## Backgrounds by layout", "", "| Layout | Fill type | Color | Theme source |", "|---|---|---|---|"]
+        master = backgrounds.get("master", {})
+        mfill = master.get("fill_type", "?")
+        mhex = master.get("hex") or "—"
+        lines.append(f"| **Master** | {mfill} | `{mhex}` | — |")
+        for b in backgrounds.get("layouts", []):
+            inherited = " (inherits)" if b.get("inherited") else ""
+            src = b.get("theme_color") or "—"
+            lines.append(f"| [{b['index']}] {b['name']}{inherited} | "
+                         f"{b.get('fill_type','?')} | `{b.get('hex') or '—'}` | `{src}` |")
+        lines.append("")
+    lines += [
         "## Generation rules",
         "",
         "When producing content for this template:",
@@ -253,6 +390,7 @@ def _write_style_guide(hub, theme):
         "- Body text minimum 10pt; 14pt preferred for projected decks.",
         "- Maximum 7 bullets per slide. Split instead of cramming.",
         "- One message per slide. Two messages = two slides.",
+        "- Use the background colors above to pick contrasting text (dark bg = light text).",
     ]
     (hub / "style-guide.md").write_text("\n".join(lines))
 
@@ -269,12 +407,29 @@ def _write_fonts_json(hub, theme):
 
 def _write_layout_md(layouts_dir, lm):
     filename = f"{lm['index']:02d}-{lm['slug']}.md"
+    bg = lm.get("background") or {}
+    bg_line = ""
+    if bg.get("hex"):
+        fill = bg.get("fill_type", "")
+        source = f" ({bg.get('theme_color')})" if bg.get("theme_color") else ""
+        inherit = " — inherits from master" if bg.get("inherited") else ""
+        bg_line = f"- **Background:** {fill} `{bg['hex']}`{source}{inherit}"
+    thumb = lm.get("thumbnail")
+    thumb_md = f"![Thumbnail]({thumb.split('/')[-1] if thumb and '/' in thumb else thumb})" if thumb else ""
+    # thumb path is like "thumbnails/NN-name.png" relative to layouts/
+    thumb_md = f"![Thumbnail]({thumb})" if thumb else ""
     lines = [
         f"# Layout {lm['index']}: {lm['name']}",
         "",
+        thumb_md,
+        "" if not thumb_md else "",
         f"- **Index:** {lm['index']}",
         f"- **Slug:** `{lm['slug']}`",
         f"- **Placeholders:** {len(lm['placeholders'])}",
+    ]
+    if bg_line:
+        lines.append(bg_line)
+    lines += [
         "",
         "## Placeholders",
         "",

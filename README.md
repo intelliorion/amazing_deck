@@ -181,6 +181,21 @@ PRs welcome. New recipes especially — see `src/amazing_deck/recipes.py` for th
 
 ---
 
+---
+
+## Install as an agent skill
+
+`amazing_deck` ships with skill-style instructions so any AI coding agent can recognize and invoke it. Drop the repo (or just the relevant file) into your agent's config and it will know what the tool does and how to use it.
+
+| Agent | File to use | Where to put it |
+|---|---|---|
+| **Claude Code** | `SKILL.md` | Copy to `~/.claude/skills/amazing_deck/SKILL.md` |
+| **GitHub Copilot** | `.github/copilot-instructions.md` | Already in the repo — Copilot picks it up when the repo is open |
+| **Cursor, Codex, other agents** | `AGENTS.md` | At the repo root — most modern agents read it automatically |
+
+All three files tell the agent: when the user asks to build a deck, run `amazing-deck analyze` on any template they provide, then draft a `content.json` using template layouts + recipes, then call `amazing-deck generate` — and enforce the quality rules (max 7 bullets per slide, theme colors only, etc.).
+
+
 ## License
 
 MIT
