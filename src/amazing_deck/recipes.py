@@ -255,3 +255,198 @@ def asks(slide, params, theme):
             add_textbox(slide, Inches(1.7), Inches(y + card_h - 0.45),
                         Inches(10.9), Inches(0.4),
                         f"Why: {a['why']}", size=10, italic=True, color=p["muted"])
+
+
+# ----------------------------- quadrant -----------------------------
+
+@recipe("quadrant")
+def quadrant(slide, params, theme):
+    """2x2 matrix with labeled axes and 4 cells.
+
+    Params:
+      title: str
+      x_axis: [left_label, right_label]
+      y_axis: [top_label, bottom_label]
+      cells: [top_left, top_right, bottom_left, bottom_right]
+             each cell is {title, items?} OR a plain string
+      highlight: "TL"|"TR"|"BL"|"BR" (optional) — one cell gets the accent fill
+    """
+    p = _palette(theme)
+    title = params.get("title", "")
+    x_axis = params.get("x_axis", ["Low", "High"])
+    y_axis = params.get("y_axis", ["High", "Low"])
+    cells = params.get("cells", [{}, {}, {}, {}])
+    highlight = (params.get("highlight") or "").upper()
+
+    if title:
+        add_textbox(slide, Inches(0.6), Inches(0.9), Inches(12.1), Inches(0.5),
+                    title, size=18, bold=True, color=p["primary"])
+
+    # Grid bounds
+    gx, gy = 1.7, 1.6
+    gw, gh = 10.8, 5.0
+    cw, ch = gw / 2, gh / 2
+
+    fills = {"TL": "#FFFFFF", "TR": "#FFFFFF", "BL": "#FFFFFF", "BR": "#FFFFFF"}
+    if highlight in fills:
+        fills[highlight] = p["accent3"]
+
+    positions = {
+        "TL": (gx, gy),
+        "TR": (gx + cw, gy),
+        "BL": (gx, gy + ch),
+        "BR": (gx + cw, gy + ch),
+    }
+
+    for key in ("TL", "TR", "BL", "BR"):
+        x, y = positions[key]
+        add_rect(slide, Inches(x), Inches(y), Inches(cw), Inches(ch),
+                 fills[key], line_hex="#BFBFBF")
+
+    # Cell content
+    cell_keys = ["TL", "TR", "BL", "BR"]
+    for i, cell in enumerate(cells[:4]):
+        key = cell_keys[i]
+        x, y = positions[key]
+        if isinstance(cell, str):
+            text = cell
+            items = []
+        else:
+            text = cell.get("title", "")
+            items = cell.get("items", [])
+        if text:
+            add_textbox(slide, Inches(x + 0.2), Inches(y + 0.2),
+                        Inches(cw - 0.4), Inches(0.4),
+                        text, size=13, bold=True, color=p["primary"])
+        if items:
+            tb = slide.shapes.add_textbox(
+                Inches(x + 0.2), Inches(y + 0.7),
+                Inches(cw - 0.4), Inches(ch - 0.9))
+            tf = tb.text_frame
+            tf.word_wrap = True
+            for j, item in enumerate(items):
+                par = tf.paragraphs[0] if j == 0 else tf.add_paragraph()
+                par.line_spacing = 1.2
+                run = par.add_run()
+                run.text = f"*  {item}"
+                run.font.size = Pt(11)
+                run.font.color.rgb = hex_to_rgb(p["text"])
+
+    # Axis labels
+    add_textbox(slide, Inches(gx), Inches(gy + gh + 0.05),
+                Inches(cw), Inches(0.3),
+                str(x_axis[0]), size=10, italic=True,
+                color=p["muted"], align="center")
+    add_textbox(slide, Inches(gx + cw), Inches(gy + gh + 0.05),
+                Inches(cw), Inches(0.3),
+                str(x_axis[1]), size=10, italic=True,
+                color=p["muted"], align="center")
+    add_textbox(slide, Inches(gx - 1.05), Inches(gy),
+                Inches(1.0), Inches(0.3),
+                str(y_axis[0]), size=10, italic=True,
+                color=p["muted"], align="right")
+    add_textbox(slide, Inches(gx - 1.05), Inches(gy + ch),
+                Inches(1.0), Inches(0.3),
+                str(y_axis[1]), size=10, italic=True,
+                color=p["muted"], align="right")
+
+
+# ----------------------------- process_flow -----------------------------
+
+@recipe("process_flow")
+def process_flow(slide, params, theme):
+    """Horizontal arrow chain of phases.
+
+    Params:
+      title: str
+      phases: list of {name, description?, color?}
+    """
+    p = _palette(theme)
+    title = params.get("title", "")
+    phases = params.get("phases", [])
+
+    if title:
+        add_textbox(slide, Inches(0.6), Inches(1.0), Inches(12.1), Inches(0.5),
+                    title, size=18, bold=True, color=p["primary"])
+
+    if not phases:
+        return
+
+    from pptx.enum.shapes import MSO_SHAPE
+    n = len(phases)
+    total_w = 12.1
+    gap = 0.15
+    phase_w = (total_w - gap * (n - 1)) / n
+    y = 2.5
+    h = 2.5
+    palette_cycle = [p["primary"], p["accent"], p["accent2"], p["accent3"]]
+
+    for i, phase in enumerate(phases):
+        x = 0.6 + i * (phase_w + gap)
+        color = phase.get("color") or palette_cycle[i % len(palette_cycle)]
+
+        # Use pentagon (right arrow shape) except last — use rounded rect for end
+        shape_type = MSO_SHAPE.PENTAGON if i < n - 1 else MSO_SHAPE.ROUNDED_RECTANGLE
+        arrow = slide.shapes.add_shape(
+            shape_type,
+            Inches(x), Inches(y), Inches(phase_w), Inches(h))
+        arrow.fill.solid()
+        arrow.fill.fore_color.rgb = hex_to_rgb(color)
+        arrow.line.fill.background()
+
+        # Phase number
+        add_textbox(slide, Inches(x + 0.2), Inches(y + 0.25),
+                    Inches(phase_w - 0.4), Inches(0.4),
+                    f"PHASE {i + 1}", size=9, bold=True,
+                    color="#FFFFFF", align="center")
+        # Name
+        add_textbox(slide, Inches(x + 0.2), Inches(y + 0.7),
+                    Inches(phase_w - 0.4), Inches(0.5),
+                    phase.get("name", ""), size=16, bold=True,
+                    color="#FFFFFF", align="center", anchor="middle")
+        # Description
+        if phase.get("description"):
+            add_textbox(slide, Inches(x + 0.3), Inches(y + 1.35),
+                        Inches(phase_w - 0.6), Inches(h - 1.45),
+                        phase["description"], size=10,
+                        color="#FFFFFF", align="center")
+
+
+# ----------------------------- section_divider -----------------------------
+
+@recipe("section_divider")
+def section_divider(slide, params, theme):
+    """Full-bleed section header.
+
+    Params:
+      number: str or int (e.g., "01", "II", "3")
+      title: str
+      subtitle: str (optional)
+      color: hex (optional — overrides accent)
+    """
+    p = _palette(theme)
+    color = params.get("color") or p["primary"]
+    number = str(params.get("number", ""))
+    title = params.get("title", "")
+    subtitle = params.get("subtitle", "")
+
+    # Full-bleed color panel
+    add_rect(slide, Inches(0), Inches(0), Inches(13.333), Inches(7.5), color)
+
+    # Left accent stripe
+    add_rect(slide, Inches(0), Inches(0), Inches(0.5), Inches(7.5), p["accent3"])
+
+    # Number (large, faded)
+    if number:
+        add_textbox(slide, Inches(1.0), Inches(0.8), Inches(4), Inches(2),
+                    number, size=72, bold=True, color="#FFFFFF",
+                    anchor="top")
+
+    # Title
+    add_textbox(slide, Inches(1.0), Inches(3.0), Inches(11), Inches(2),
+                title, size=48, bold=True, color="#FFFFFF")
+
+    # Subtitle
+    if subtitle:
+        add_textbox(slide, Inches(1.0), Inches(5.2), Inches(11), Inches(1),
+                    subtitle, size=20, italic=True, color="#FFFFFF")
